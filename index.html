@@ -250,6 +250,26 @@ figcaption{display:flex;gap:10px;align-items:baseline;font:400 13.5px/1.4 var(--
   .bar .sp{display:none}
   .brand span{display:none}
 }
+
+/* Fork additions: theme toggle, copy buttons, heading links, back to top, print */
+.theme-btn{height:36px;width:36px;flex:none;border:1px solid var(--line);background:var(--paper);color:var(--ink);border-radius:8px;cursor:pointer;display:inline-grid;place-items:center;padding:0}
+.theme-btn svg{width:18px;height:18px}
+.code{position:relative}
+.copy-btn{position:absolute;top:-4px;right:0;font:500 11px var(--mono);color:var(--muted);background:var(--sheet);border:1px solid var(--line);border-radius:6px;padding:3px 8px;cursor:pointer;opacity:.85}
+.copy-btn:hover,.copy-btn:focus-visible{opacity:1;color:var(--ink)}
+.copy-btn.done{color:var(--rope-ink);border-color:var(--rope)}
+.pat h3 .hlink{margin-left:.35em;font-size:.6em;color:var(--edge);text-decoration:none;opacity:0;transition:opacity .15s}
+.pat header:hover .hlink,.pat h3 .hlink:focus-visible{opacity:1}
+@media (hover:none){.pat h3 .hlink{opacity:.6}}
+.to-top{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:40;width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--sheet);color:var(--ink);font:600 18px var(--mono);cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.12);opacity:0;pointer-events:none;transition:opacity .2s}
+.to-top.show{opacity:1;pointer-events:auto}
+@media print{
+  .bar,.rail,.to-top,.copy-btn,.hlink,.theme-btn{display:none!important}
+  .shell{display:block!important}
+  body{background:#fff!important}
+  .pat{break-inside:auto;page-break-before:auto}
+  .fig,.code pre{break-inside:avoid}
+}
 </style>
 
 <header class="bar"><div class="bar-in">
@@ -257,6 +277,7 @@ figcaption{display:flex;gap:10px;align-items:baseline;font:400 13.5px/1.4 var(--
   <a class="brand" href="#top"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8.5" fill="none" stroke="var(--rope)" stroke-width="2.4"/><path d="M11 2.5v17M4 7h14M4 15h14" stroke="var(--ink)" stroke-width="1.6" fill="none"/></svg><span>Harness Patterns</span></a>
   <div class="sp"></div>
   <div class="search"><input id="q" type="search" placeholder="Find a pattern" aria-label="Find a pattern" autocomplete="off"><kbd>/</kbd></div>
+  <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch colour theme" title="Switch colour theme"></button>
 </div></header>
 
 <div class="shell" id="top">
@@ -5400,4 +5421,73 @@ b = (BatchBuilder()
 })();
 </script>
 
+<script>
+/* Fork additions: theme toggle, copy buttons, heading links, back to top */
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  var icons={
+    auto:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>',
+    light:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+    dark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>'
+  };
+  var order=['auto','light','dark'], mode='auto';
+  try{mode=localStorage.getItem('hp-theme')||'auto';}catch(e){}
+  function apply(m){
+    mode=m;
+    if(m==='auto')root.removeAttribute('data-theme');else root.setAttribute('data-theme',m);
+    btn.innerHTML=icons[m];
+    btn.title=btn.ariaLabel='Theme: '+m+' (click to change)';
+    btn.setAttribute('aria-label',btn.title);
+  }
+  apply(order.indexOf(mode)<0?'auto':mode);
+  btn.addEventListener('click',function(){
+    var next=order[(order.indexOf(mode)+1)%order.length];
+    apply(next);
+    try{localStorage.setItem('hp-theme',next);}catch(e){}
+  });
+
+  function copyText(t){
+    if(navigator.clipboard&&window.isSecureContext)return navigator.clipboard.writeText(t);
+    return new Promise(function(ok,no){
+      var a=document.createElement('textarea');a.value=t;a.style.position='fixed';a.style.opacity='0';
+      document.body.appendChild(a);a.select();
+      try{document.execCommand('copy')?ok():no();}catch(e){no(e);}finally{a.remove();}
+    });
+  }
+  function flash(b,label){var old=b.textContent;b.textContent=label;b.classList.add('done');
+    setTimeout(function(){b.textContent=old;b.classList.remove('done');},1400);}
+
+  document.querySelectorAll('.code').forEach(function(box){
+    var pre=box.querySelector('pre'); if(!pre)return;
+    var b=document.createElement('button');
+    b.type='button';b.className='copy-btn';b.textContent='Copy';b.setAttribute('aria-label','Copy code sketch');
+    b.addEventListener('click',function(){copyText(pre.innerText).then(function(){flash(b,'Copied');},function(){flash(b,'Press Ctrl+C');});});
+    box.appendChild(b);
+  });
+
+  document.querySelectorAll('.pat').forEach(function(p){
+    var h=p.querySelector('h3'); if(!h||!p.id)return;
+    var a=document.createElement('a');
+    a.className='hlink';a.href='#'+p.id;a.textContent='#';
+    a.setAttribute('aria-label','Copy link to '+h.textContent);
+    a.addEventListener('click',function(e){
+      e.preventDefault();
+      history.replaceState(null,'','#'+p.id);
+      var url=location.href;
+      copyText(url).then(function(){flash(a,'✓');},function(){});
+    });
+    h.appendChild(a);
+  });
+
+  var top=document.createElement('button');
+  top.type='button';top.className='to-top';top.textContent='↑';top.setAttribute('aria-label','Back to top');
+  top.addEventListener('click',function(){window.scrollTo({top:0});});
+  document.body.appendChild(top);
+  var ticking=false;
+  window.addEventListener('scroll',function(){
+    if(ticking)return;ticking=true;
+    requestAnimationFrame(function(){top.classList.toggle('show',window.scrollY>900);ticking=false;});
+  },{passive:true});
+})();
+</script>
 </body></html>
