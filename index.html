@@ -270,13 +270,36 @@ figcaption{display:flex;gap:10px;align-items:baseline;font:400 13.5px/1.4 var(--
   .pat{break-inside:auto;page-break-before:auto}
   .fig,.code pre{break-inside:avoid}
 }
+
+/* Fork additions: full-text search results, progress bar, prev/next, shortcuts */
+.progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--rope);z-index:60;pointer-events:none}
+.sr{position:absolute;top:42px;right:0;width:min(520px,92vw);max-height:min(70vh,560px);overflow:auto;background:var(--sheet);border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.18);z-index:50;padding:6px}
+.sr[hidden]{display:none}
+.sr .meta{font:500 11px var(--mono);color:var(--muted);padding:6px 10px 8px;letter-spacing:.02em}
+.sr a{display:block;padding:9px 10px;border-radius:8px;color:var(--ink);text-decoration:none}
+.sr a.act,.sr a:hover{background:var(--faint)}
+.sr .t{font:600 14.5px/1.3 var(--display)}
+.sr .t .n{font:500 11.5px var(--mono);color:var(--rope-ink);margin-right:8px}
+.sr .c{font:500 11px var(--mono);color:var(--muted);margin-top:2px}
+.sr .x{font:13.5px/1.45 var(--body);color:var(--muted);margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sr mark{background:var(--rope-wash);color:var(--rope-ink);border-radius:2px;padding:0 1px}
+.sr .empty{padding:14px 10px;font:14px var(--body);color:var(--muted)}
+@media (max-width:980px){.sr{position:fixed;top:calc(60px + env(safe-area-inset-top,0px));left:8px;right:8px;width:auto}}
+.pnav{display:flex;gap:10px;justify-content:space-between;margin-top:22px;padding-top:14px;border-top:1px dashed var(--line);font:500 12.5px var(--mono)}
+.pnav a{color:var(--muted);text-decoration:none;max-width:48%}
+.pnav a:hover{color:var(--rope-ink)}
+.pnav .nx{margin-left:auto;text-align:right}
+.keys{font:500 12px/1.8 var(--mono);color:var(--muted);margin-top:18px}
+.keys kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;margin:0 2px;color:var(--ink);background:var(--paper)}
+@media (hover:none){.keys{display:none}}
+@media print{.progress,.sr,.pnav,.keys{display:none!important}}
 </style>
 
 <header class="bar"><div class="bar-in">
   <button class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="rail">Contents</button>
   <a class="brand" href="#top"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8.5" fill="none" stroke="var(--rope)" stroke-width="2.4"/><path d="M11 2.5v17M4 7h14M4 15h14" stroke="var(--ink)" stroke-width="1.6" fill="none"/></svg><span>Harness Patterns</span></a>
   <div class="sp"></div>
-  <div class="search"><input id="q" type="search" placeholder="Find a pattern" aria-label="Find a pattern" autocomplete="off"><kbd>/</kbd></div>
+  <div class="search"><input id="q" type="search" placeholder="Search 192 patterns…" aria-label="Search all patterns" autocomplete="off" aria-controls="sr" aria-expanded="false"><kbd>/</kbd><div class="sr" id="sr" role="listbox" aria-label="Search results" hidden></div></div>
   <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch colour theme" title="Switch colour theme"></button>
 </div></header>
 
@@ -5488,6 +5511,154 @@ b = (BatchBuilder()
     if(ticking)return;ticking=true;
     requestAnimationFrame(function(){top.classList.toggle('show',window.scrollY>900);ticking=false;});
   },{passive:true});
+})();
+</script>
+<script>
+/* Fork additions: full-text search, prev/next links, reading progress, keyboard shortcuts */
+(function(){
+  var q=document.getElementById('q'), sr=document.getElementById('sr');
+  var pats=[].slice.call(document.querySelectorAll('.pat'));
+  function norm(t){return (t||'').toLowerCase().replace(/\s+/g,' ').trim();}
+  function esc(t){return t.replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+  // Build a search index from every pattern's full text
+  var idx=pats.map(function(p){
+    var ch=p.closest('.chapter'), h2=ch&&ch.querySelector('.opener h2');
+    var title=(p.querySelector('h3')||{}).textContent||'';
+    title=title.replace(/#$/,'').trim();
+    var gist=(p.querySelector('.gist')||{}).textContent||'';
+    var body=p.cloneNode(true);
+    body.querySelectorAll('svg,.hlink,.copy-btn,.pnav').forEach(function(n){n.remove();});
+    return {id:p.id,num:(p.querySelector('.num')||{}).textContent||'',title:title,t:norm(title),
+            g:norm(gist),gist:gist.trim(),b:norm(body.textContent),raw:body.textContent.replace(/\s+/g,' ').trim(),chap:h2?h2.textContent:''};
+  });
+
+  // Make the sidebar filter match the full text too (it reads data-name)
+  var byId={}; idx.forEach(function(e){byId[e.id]=e;});
+  document.querySelectorAll('#toc ol a').forEach(function(a){
+    var e=byId[a.getAttribute('href').slice(1)]; if(e)a.dataset.name=e.t+' '+e.g+' '+e.b+' '+norm(e.chap);
+  });
+
+  function search(v){
+    var words=norm(v).split(' ').filter(Boolean); if(!words.length)return [];
+    var out=[];
+    idx.forEach(function(e){
+      var score=0;
+      for(var i=0;i<words.length;i++){
+        var w=words[i], st=stem(w), s=0;
+        if(e.t.indexOf(w)===0)s+=12; else if(e.t.indexOf(w)>-1)s+=8; else if(st!==w&&e.t.indexOf(st)>-1)s+=7;
+        if(e.g.indexOf(w)>-1)s+=4; else if(st!==w&&e.g.indexOf(st)>-1)s+=3;
+        if(norm(e.chap).indexOf(st)>-1)s+=2;
+        if(e.b.indexOf(w)>-1)s+=1+Math.min(3,e.b.split(w).length-1)*0.3; else if(st!==w&&e.b.indexOf(st)>-1)s+=0.8;
+        if(!s)return; // every word must match somewhere
+        score+=s;
+      }
+      out.push({e:e,s:score});
+    });
+    return out.sort(function(a,b){return b.s-a.s;}).map(function(x){return x.e;});
+  }
+  // Rough stem so "idempotency" also finds "idempotent", "retries" finds "retry"
+  function stem(w){
+    if(w.length<5)return w;
+    var m=w.match(/^(.{4,}?)(ency|ence|ance|ancy|ents|ent|ing|ies|ied|ed|es|s|y)$/);
+    return m?m[1]:w;
+  }
+  function hl(text,words){
+    words=words.concat(words.map(stem));
+    var t=esc(text);
+    words.forEach(function(w){if(w.length<2)return;
+      t=t.replace(new RegExp('('+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark>$1</mark>');});
+    return t;
+  }
+  function snippet(e,words){
+    if(words.some(function(w){return e.g.indexOf(w)>-1;})||!words.length)return e.gist;
+    var i=e.b.indexOf(words[0]); if(i<0)i=e.b.indexOf(stem(words[0])); if(i<0)return e.gist;
+    var a=Math.max(0,i-60), z=Math.min(e.raw.length,i+120);
+    if(a){var sp=e.raw.indexOf(' ',a);if(sp>-1&&sp<i)a=sp+1;}
+    return (a?'… ':'')+e.raw.slice(a,z)+(z<e.raw.length?' …':'');
+  }
+
+  var act=-1, res=[];
+  function render(){
+    var v=q.value, words=norm(v).split(' ').filter(Boolean);
+    if(!words.length){close();return;}
+    res=search(v).slice(0,30); act=res.length?0:-1;
+    var all=search(v).length;
+    sr.innerHTML=(res.length?'<div class="meta">'+all+' pattern'+(all===1?'':'s')+' match · ↑↓ to move · Enter to open</div>':'<div class="empty">No pattern mentions “'+esc(v)+'”. Try a shorter word.</div>')+
+      res.map(function(e,i){return '<a href="#'+e.id+'" role="option" id="sr-'+i+'"'+(i===act?' class="act" aria-selected="true"':'')+'><div class="t"><span class="n">'+esc(e.num)+'</span>'+hl(e.title,words)+'</div><div class="c">'+esc(e.chap)+'</div><div class="x">'+hl(snippet(e,words),words)+'</div></a>';}).join('');
+    sr.hidden=false; q.setAttribute('aria-expanded','true');
+  }
+  function close(){sr.hidden=true;q.setAttribute('aria-expanded','false');act=-1;}
+  function setAct(n){
+    var items=sr.querySelectorAll('a'); if(!items.length)return;
+    act=(n+items.length)%items.length;
+    items.forEach(function(a,i){a.classList.toggle('act',i===act);a.setAttribute('aria-selected',i===act?'true':'false');});
+    items[act].scrollIntoView({block:'nearest'});
+  }
+  function go(id){
+    close(); q.blur();
+    var el=document.getElementById(id); if(!el)return;
+    history.pushState(null,'','#'+id); el.scrollIntoView();
+    var rail=document.getElementById('rail'); if(rail)rail.classList.remove('open');
+  }
+  q.addEventListener('input',render);
+  q.addEventListener('focus',function(){if(q.value.trim())render();});
+  // Capture phase so these keys don't also trigger the sidebar's own Enter handler
+  document.addEventListener('keydown',function(e){
+    if(e.target!==q||sr.hidden)return;
+    if(e.key==='ArrowDown'){e.preventDefault();setAct(act+1);}
+    else if(e.key==='ArrowUp'){e.preventDefault();setAct(act-1);}
+    else if(e.key==='Enter'&&act>-1&&res[act]){e.preventDefault();e.stopPropagation();go(res[act].id);}
+    else if(e.key==='Escape'){close();}
+  },true);
+  sr.addEventListener('click',function(e){var a=e.target.closest('a');if(a){e.preventDefault();go(a.getAttribute('href').slice(1));}});
+  document.addEventListener('click',function(e){if(!e.target.closest('.search'))close();});
+
+  // Shareable search: ?q=word opens the page with results showing
+  try{var pq=new URLSearchParams(location.search).get('q');if(pq){q.value=pq;q.dispatchEvent(new Event('input'));q.focus();}}catch(e){}
+
+  // Previous / next links at the end of every pattern
+  pats.forEach(function(p,i){
+    var nav=document.createElement('nav'); nav.className='pnav'; nav.setAttribute('aria-label','Pattern navigation');
+    var a=idx[i-1], b=idx[i+1];
+    nav.innerHTML=(a?'<a class="pv" href="#'+a.id+'">← '+esc(a.num+' '+a.title)+'</a>':'')+
+                  (b?'<a class="nx" href="#'+b.id+'">'+esc(b.num+' '+b.title)+' →</a>':'');
+    p.appendChild(nav);
+  });
+
+  // Keyboard shortcuts: j / k = next / previous pattern
+  // While a j/k jump is still smooth-scrolling, keep counting from its target
+  var pending=-1, settle;
+  window.addEventListener('scroll',function(){clearTimeout(settle);settle=setTimeout(function(){pending=-1;},180);},{passive:true});
+  function currentIndex(){
+    if(pending>-1)return pending;
+    var y=window.innerHeight*0.25, best=0;
+    for(var i=0;i<pats.length;i++){if(pats[i].getBoundingClientRect().top<=y)best=i;else break;}
+    return best;
+  }
+  document.addEventListener('keydown',function(e){
+    var t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable))return;
+    if(e.metaKey||e.ctrlKey||e.altKey)return;
+    var i=currentIndex(), first=pats[0].getBoundingClientRect().top>window.innerHeight*0.25;
+    var to=-1;
+    if(e.key==='j')to=first&&pending<0?0:Math.min(pats.length-1,i+1);
+    if(e.key==='k'&&!(first&&pending<0))to=Math.max(0,i-1);
+    if(to<0)return;
+    e.preventDefault(); pending=to; go(pats[to].id);
+    clearTimeout(settle);settle=setTimeout(function(){pending=-1;},1200);
+  });
+  var cover=document.querySelector('.cover .stats');
+  if(cover){var k=document.createElement('div');k.className='keys';
+    k.innerHTML='Shortcuts: <kbd>/</kbd> search · <kbd>↑</kbd><kbd>↓</kbd> pick a result · <kbd>j</kbd> next pattern · <kbd>k</kbd> previous pattern';
+    cover.insertAdjacentElement('afterend',k);}
+
+  // Reading progress bar
+  var bar=document.createElement('div'); bar.className='progress'; bar.setAttribute('aria-hidden','true');
+  document.body.appendChild(bar);
+  var tick=false;
+  function upd(){var h=document.documentElement.scrollHeight-innerHeight;bar.style.width=(h>0?scrollY/h*100:0)+'%';tick=false;}
+  window.addEventListener('scroll',function(){if(!tick){tick=true;requestAnimationFrame(upd);}},{passive:true});
+  upd();
 })();
 </script>
 </body></html>

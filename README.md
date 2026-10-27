@@ -13,7 +13,13 @@ All content is by the original author. This fork adds:
 - **Copy** button on every code sketch
 - `#` link next to each pattern title that copies a direct link to it
 - Back-to-top button
+- **Full-text search** across all 192 patterns: ranked results with chapter and highlighted snippet, ↑ ↓ + Enter to open, finds word forms ("idempotency" → "idempotent")
+- Shareable search links: add `?q=retry` to the URL
+- Previous / next pattern links at the end of every pattern
+- Keyboard shortcuts: `/` search, `j` next pattern, `k` previous pattern
+- Reading progress bar
 - Print styles (hides the menu and buttons)
+- `sitemap.xml`
 
 ## Run locally
 
@@ -21,6 +27,7 @@ It is a single self-contained page — just open `index.html` in a browser.
 
 ## Use the page
 
-- Press `/` to search patterns, `Enter` to jump to the first match, `Esc` to clear.
+- Press `/` to search the full text of every pattern, `↑` `↓` to pick a result, `Enter` to open it, `Esc` to close.
+- Press `j` / `k` to move to the next / previous pattern.
 - On a phone, tap **Contents** to open the pattern list.
 - Click the moon/sun button at the top right to switch theme.
