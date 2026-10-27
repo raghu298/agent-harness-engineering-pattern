@@ -2,13 +2,20 @@
 <title>Harness Patterns</title>
 <meta name="description" content="A plain-English field manual of design patterns for building AI agent harnesses: the agent loop, tool system, memory, and more.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://raghu298.github.io/agent-harness-engineering-pattern-fork/">
+<meta property="og:image" content="https://raghu298.github.io/agent-harness-engineering-pattern-fork/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <meta property="og:title" content="Harness Patterns">
 <meta property="og:description" content="A plain-English field manual of design patterns for building AI agent harnesses: the agent loop, tool system, memory, and more.">
 <meta name="theme-color" content="#15211F">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2713%27 fill=%27none%27 stroke=%27%23D4541A%27 stroke-width=%274%27/%3E%3Cpath d=%27M16 3v26M3 16h26%27 stroke=%27%23D4541A%27 stroke-width=%273%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,800&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=IBM+Plex+Mono:wght@400;500&display=swap"></noscript>
 </head><body>
 <style>
 /* Layout: field-manual book. Sticky contents rail on the left, one reading column, every pattern a plate with its figure. */
@@ -297,9 +304,9 @@ figcaption{display:flex;gap:10px;align-items:baseline;font:400 13.5px/1.4 var(--
 
 <header class="bar"><div class="bar-in">
   <button class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="rail">Contents</button>
-  <a class="brand" href="#top"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8.5" fill="none" stroke="var(--rope)" stroke-width="2.4"/><path d="M11 2.5v17M4 7h14M4 15h14" stroke="var(--ink)" stroke-width="1.6" fill="none"/></svg><span>Harness Patterns</span></a>
+  <a class="brand" href="#top" aria-label="Harness Patterns, back to the start"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="11" cy="11" r="8.5" fill="none" stroke="var(--rope)" stroke-width="2.4"/><path d="M11 2.5v17M4 7h14M4 15h14" stroke="var(--ink)" stroke-width="1.6" fill="none"/></svg><span>Harness Patterns</span></a>
   <div class="sp"></div>
-  <div class="search"><input id="q" type="search" placeholder="Search 192 patterns…" aria-label="Search all patterns" autocomplete="off" aria-controls="sr" aria-expanded="false"><kbd>/</kbd><div class="sr" id="sr" role="listbox" aria-label="Search results" hidden></div></div>
+  <div class="search"><input id="q" type="search" placeholder="Search 192 patterns…" aria-label="Search all patterns" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="sr" aria-expanded="false"><kbd>/</kbd><div class="sr" id="sr" role="listbox" aria-label="Search results" hidden></div></div>
   <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch colour theme" title="Switch colour theme"></button>
 </div></header>
 
@@ -5459,10 +5466,13 @@ b = (BatchBuilder()
     mode=m;
     if(m==='auto')root.removeAttribute('data-theme');else root.setAttribute('data-theme',m);
     btn.innerHTML=icons[m];
+    var tc=document.querySelector('meta[name=theme-color]'), dark=m==='dark'||(m==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);
+    if(tc)tc.content=dark?'#101614':'#EDF0EE';
     btn.title=btn.ariaLabel='Theme: '+m+' (click to change)';
     btn.setAttribute('aria-label',btn.title);
   }
   apply(order.indexOf(mode)<0?'auto':mode);
+  try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(){if(mode==='auto')apply('auto');});}catch(e){}
   btn.addEventListener('click',function(){
     var next=order[(order.indexOf(mode)+1)%order.length];
     apply(next);
@@ -5521,25 +5531,37 @@ b = (BatchBuilder()
   function norm(t){return (t||'').toLowerCase().replace(/\s+/g,' ').trim();}
   function esc(t){return t.replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 
-  // Build a search index from every pattern's full text
+  // Light list for prev/next links (cheap, built now)
   var idx=pats.map(function(p){
     var ch=p.closest('.chapter'), h2=ch&&ch.querySelector('.opener h2');
-    var title=(p.querySelector('h3')||{}).textContent||'';
-    title=title.replace(/#$/,'').trim();
-    var gist=(p.querySelector('.gist')||{}).textContent||'';
-    var body=p.cloneNode(true);
-    body.querySelectorAll('svg,.hlink,.copy-btn,.pnav').forEach(function(n){n.remove();});
-    return {id:p.id,num:(p.querySelector('.num')||{}).textContent||'',title:title,t:norm(title),
-            g:norm(gist),gist:gist.trim(),b:norm(body.textContent),raw:body.textContent.replace(/\s+/g,' ').trim(),chap:h2?h2.textContent:''};
+    var title=((p.querySelector('h3')||{}).textContent||'').replace(/#$/,'').trim();
+    return {id:p.id,num:(p.querySelector('.num')||{}).textContent||'',title:title,chap:h2?h2.textContent:'',el:p};
   });
-
-  // Make the sidebar filter match the full text too (it reads data-name)
-  var byId={}; idx.forEach(function(e){byId[e.id]=e;});
-  document.querySelectorAll('#toc ol a').forEach(function(a){
-    var e=byId[a.getAttribute('href').slice(1)]; if(e)a.dataset.name=e.t+' '+e.g+' '+e.b+' '+norm(e.chap);
-  });
+  // Full-text index, built the first time someone uses search (keeps page load fast)
+  var ready=false;
+  function buildIndex(){
+    if(ready)return; ready=true;
+    var byId={};
+    idx.forEach(function(e){
+      var gist=(e.el.querySelector('.gist')||{}).textContent||'', raw='';
+      for(var c=e.el.firstElementChild;c;c=c.nextElementSibling){
+        if(c.classList.contains('pnav')||c.tagName==='FIGURE')continue;
+        raw+=' '+c.textContent;
+      }
+      e.t=norm(e.title); e.g=norm(gist); e.gist=gist.trim();
+      e.raw=raw.replace(/\s+/g,' ').trim(); e.b=e.raw.toLowerCase(); e.c=norm(e.chap);
+      byId[e.id]=e;
+    });
+    // Make the sidebar filter match the full text too (it reads data-name)
+    document.querySelectorAll('#toc ol a').forEach(function(a){
+      var e=byId[a.getAttribute('href').slice(1)]; if(e)a.dataset.name=e.t+' '+e.g+' '+e.b+' '+e.c;
+    });
+  }
+  q.addEventListener('focus',buildIndex);
+  q.addEventListener('pointerdown',buildIndex);
 
   function search(v){
+    buildIndex();
     var words=norm(v).split(' ').filter(Boolean); if(!words.length)return [];
     var out=[];
     idx.forEach(function(e){
@@ -5548,7 +5570,7 @@ b = (BatchBuilder()
         var w=words[i], st=stem(w), s=0;
         if(e.t.indexOf(w)===0)s+=12; else if(e.t.indexOf(w)>-1)s+=8; else if(st!==w&&e.t.indexOf(st)>-1)s+=7;
         if(e.g.indexOf(w)>-1)s+=4; else if(st!==w&&e.g.indexOf(st)>-1)s+=3;
-        if(norm(e.chap).indexOf(st)>-1)s+=2;
+        if(e.c.indexOf(st)>-1)s+=2;
         if(e.b.indexOf(w)>-1)s+=1+Math.min(3,e.b.split(w).length-1)*0.3; else if(st!==w&&e.b.indexOf(st)>-1)s+=0.8;
         if(!s)return; // every word must match somewhere
         score+=s;
@@ -5563,12 +5585,15 @@ b = (BatchBuilder()
     var m=w.match(/^(.{4,}?)(ency|ence|ance|ancy|ents|ent|ing|ies|ied|ed|es|s|y)$/);
     return m?m[1]:w;
   }
+  // Highlight all query words in one pass on the plain text, then escape each piece
   function hl(text,words){
-    words=words.concat(words.map(stem));
-    var t=esc(text);
-    words.forEach(function(w){if(w.length<2)return;
-      t=t.replace(new RegExp('('+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark>$1</mark>');});
-    return t;
+    var list=words.concat(words.map(stem)).filter(function(w,i,a){return w.length>1&&a.indexOf(w)===i;})
+      .sort(function(a,b){return b.length-a.length;})
+      .map(function(w){return w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');});
+    if(!list.length)return esc(text);
+    return text.split(new RegExp('('+list.join('|')+')','i')).map(function(part,i){
+      return i%2?'<mark>'+esc(part)+'</mark>':esc(part);
+    }).join('');
   }
   function snippet(e,words){
     if(words.some(function(w){return e.g.indexOf(w)>-1;})||!words.length)return e.gist;
@@ -5582,24 +5607,27 @@ b = (BatchBuilder()
   function render(){
     var v=q.value, words=norm(v).split(' ').filter(Boolean);
     if(!words.length){close();return;}
-    res=search(v).slice(0,30); act=res.length?0:-1;
-    var all=search(v).length;
+    var found=search(v), all=found.length;
+    res=found.slice(0,30); act=res.length?0:-1;
     sr.innerHTML=(res.length?'<div class="meta">'+all+' pattern'+(all===1?'':'s')+' match · ↑↓ to move · Enter to open</div>':'<div class="empty">No pattern mentions “'+esc(v)+'”. Try a shorter word.</div>')+
       res.map(function(e,i){return '<a href="#'+e.id+'" role="option" id="sr-'+i+'"'+(i===act?' class="act" aria-selected="true"':'')+'><div class="t"><span class="n">'+esc(e.num)+'</span>'+hl(e.title,words)+'</div><div class="c">'+esc(e.chap)+'</div><div class="x">'+hl(snippet(e,words),words)+'</div></a>';}).join('');
     sr.hidden=false; q.setAttribute('aria-expanded','true');
+    if(act>-1)q.setAttribute('aria-activedescendant','sr-'+act);else q.removeAttribute('aria-activedescendant');
   }
-  function close(){sr.hidden=true;q.setAttribute('aria-expanded','false');act=-1;}
+  function close(){sr.hidden=true;q.setAttribute('aria-expanded','false');q.removeAttribute('aria-activedescendant');act=-1;}
   function setAct(n){
     var items=sr.querySelectorAll('a'); if(!items.length)return;
     act=(n+items.length)%items.length;
     items.forEach(function(a,i){a.classList.toggle('act',i===act);a.setAttribute('aria-selected',i===act?'true':'false');});
     items[act].scrollIntoView({block:'nearest'});
+    q.setAttribute('aria-activedescendant',items[act].id);
   }
   function go(id){
     close(); q.blur();
     var el=document.getElementById(id); if(!el)return;
     history.pushState(null,'','#'+id); el.scrollIntoView();
-    var rail=document.getElementById('rail'); if(rail)rail.classList.remove('open');
+    var rail=document.getElementById('rail'), mb=document.getElementById('menuBtn');
+    if(rail)rail.classList.remove('open'); if(mb)mb.setAttribute('aria-expanded','false');
   }
   q.addEventListener('input',render);
   q.addEventListener('focus',function(){if(q.value.trim())render();});
@@ -5615,7 +5643,7 @@ b = (BatchBuilder()
   document.addEventListener('click',function(e){if(!e.target.closest('.search'))close();});
 
   // Shareable search: ?q=word opens the page with results showing
-  try{var pq=new URLSearchParams(location.search).get('q');if(pq){q.value=pq;q.dispatchEvent(new Event('input'));q.focus();}}catch(e){}
+  try{var pq=new URLSearchParams(location.search).get('q');if(pq){buildIndex();q.value=pq;q.dispatchEvent(new Event('input'));q.focus();}}catch(e){}
 
   // Previous / next links at the end of every pattern
   pats.forEach(function(p,i){
@@ -5651,6 +5679,20 @@ b = (BatchBuilder()
   if(cover){var k=document.createElement('div');k.className='keys';
     k.innerHTML='Shortcuts: <kbd>/</kbd> search · <kbd>↑</kbd><kbd>↓</kbd> pick a result · <kbd>j</kbd> next pattern · <kbd>k</kbd> previous pattern';
     cover.insertAdjacentElement('afterend',k);}
+
+  // Opening a link to a pattern: jump again once fonts and images have loaded,
+  // because they change the page height after the browser's first jump
+  if(location.hash.length>1){
+    var moved=false;
+    ['wheel','touchstart','keydown','mousedown'].forEach(function(ev){window.addEventListener(ev,function(){moved=true;},{once:true,passive:true});});
+    var fix=function(){
+      if(moved)return;
+      var el=document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      if(el)el.scrollIntoView({behavior:'instant',block:'start'});
+    };
+    if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fix);
+    window.addEventListener('load',function(){fix();setTimeout(fix,300);});
+  }
 
   // Reading progress bar
   var bar=document.createElement('div'); bar.className='progress'; bar.setAttribute('aria-hidden','true');
