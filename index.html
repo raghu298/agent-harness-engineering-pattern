@@ -299,7 +299,10 @@ figcaption{display:flex;gap:10px;align-items:baseline;font:400 13.5px/1.4 var(--
 .keys{font:500 12px/1.8 var(--mono);color:var(--muted);margin-top:18px}
 .keys kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;margin:0 2px;color:var(--ink);background:var(--paper)}
 @media (hover:none){.keys{display:none}}
-@media print{.progress,.sr,.pnav,.keys{display:none!important}}
+.resume{display:inline-block;margin-top:16px;padding:9px 14px;border:1px solid var(--rope);border-radius:999px;background:var(--rope-wash);color:var(--rope-ink);font:500 13px var(--mono);text-decoration:none}
+.resume:hover{background:var(--rope);color:#fff}
+.resume b{font-weight:600}
+@media print{.progress,.sr,.pnav,.keys,.resume{display:none!important}}
 </style>
 
 <header class="bar"><div class="bar-in">
@@ -5622,10 +5625,27 @@ b = (BatchBuilder()
     items[act].scrollIntoView({block:'nearest'});
     q.setAttribute('aria-activedescendant',items[act].id);
   }
+  // Smooth scroll for short hops, instant for long ones (smooth over 100,000px takes seconds)
+  function jump(el){
+    var far=Math.abs(el.getBoundingClientRect().top)>window.innerHeight*3;
+    el.scrollIntoView({behavior:far?'instant':'smooth',block:'start'});
+  }
+  // Same for every in-page link (sidebar, chapter chips, prev/next, review links)
+  document.addEventListener('click',function(e){
+    if(e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+    var a=e.target.closest('a[href^="#"]'); if(!a||a.closest('.sr'))return;
+    var id=decodeURIComponent(a.getAttribute('href').slice(1)), el=id&&document.getElementById(id);
+    if(!el)return;
+    e.preventDefault(); history.pushState(null,'','#'+id); jump(el);
+  });
+  window.addEventListener('popstate',function(){
+    var el=location.hash.length>1&&document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    if(el)jump(el);
+  });
   function go(id){
     close(); q.blur();
     var el=document.getElementById(id); if(!el)return;
-    history.pushState(null,'','#'+id); el.scrollIntoView();
+    history.pushState(null,'','#'+id); jump(el);
     var rail=document.getElementById('rail'), mb=document.getElementById('menuBtn');
     if(rail)rail.classList.remove('open'); if(mb)mb.setAttribute('aria-expanded','false');
   }
@@ -5693,6 +5713,25 @@ b = (BatchBuilder()
     if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fix);
     window.addEventListener('load',function(){fix();setTimeout(fix,300);});
   }
+
+  // Remember the last pattern read and offer to continue on the next visit
+  var KEY='hp-last', saved=null, saveT;
+  try{saved=JSON.parse(localStorage.getItem(KEY)||'null');}catch(e){}
+  if(saved&&saved.id&&location.hash.length<2&&!location.search&&document.getElementById(saved.id)&&cover){
+    var e0=idx.filter(function(x){return x.id===saved.id;})[0];
+    if(e0&&idx.indexOf(e0)>0){
+      var c=document.createElement('a'); c.className='resume'; c.href='#'+e0.id;
+      c.innerHTML='Continue reading: <b>'+esc(e0.num+' '+e0.title)+'</b> →';
+      cover.insertAdjacentElement('afterend',c);
+    }
+  }
+  window.addEventListener('scroll',function(){
+    clearTimeout(saveT);
+    saveT=setTimeout(function(){
+      if(pats[0].getBoundingClientRect().top>window.innerHeight*0.25)return;
+      try{localStorage.setItem(KEY,JSON.stringify({id:pats[currentIndex()].id}));}catch(e){}
+    },600);
+  },{passive:true});
 
   // Reading progress bar
   var bar=document.createElement('div'); bar.className='progress'; bar.setAttribute('aria-hidden','true');

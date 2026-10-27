@@ -18,6 +18,8 @@ All content is by the original author. This version adds:
 - Previous / next pattern links at the end of every pattern
 - Keyboard shortcuts: `/` search, `j` next pattern, `k` previous pattern
 - Reading progress bar
+- **Continue reading** link on the cover that takes you back to the last pattern you read
+- Fast jumps: long jumps from search or the contents list are instant; the browser Back button works between patterns
 - Print styles (hides the menu and buttons)
 - `sitemap.xml`
 
