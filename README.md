@@ -2,11 +2,11 @@
 
 A plain-English field manual of design patterns for building AI agent harnesses — the agent loop, the tool system, memory and more. Each pattern has a step-by-step explanation, a figure, a code sketch and a note on how large companies use it.
 
-- **Live site (this fork):** https://raghu298.github.io/agent-harness-engineering-pattern-fork/
+- **Live site:** https://raghu298.github.io/agent-harness-engineering-pattern/
 - **Original site:** https://ashishpatel26.github.io/agent-harness-engineering-pattern/
 - **Original repo and author:** [ashishpatel26/agent-harness-engineering-pattern](https://github.com/ashishpatel26/agent-harness-engineering-pattern)
 
-All content is by the original author. This fork adds:
+All content is by the original author. This version adds:
 
 - Page metadata: language tag, description, Open Graph tags, favicon, and `<head>` cleanup
 - Light / dark / auto theme button (remembers your choice)
