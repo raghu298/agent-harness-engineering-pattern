@@ -6,7 +6,6 @@ A plain-English field manual of design patterns for building AI agent harnesses 
 
 [![Harness Patterns](og.png)](https://raghu298.github.io/agent-harness-engineering-pattern/)
 
-All content is by the original author. This version adds:
 
 ### Find things fast
 - **Full-text search** across all 192 patterns: ranked results with the chapter and a highlighted snippet; finds word forms ("idempotency" → "idempotent")
